@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>보건소 월별 모니터링 집계결과</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom styles for Inter font and general layout */
+        body {
+            font-family: "Inter", sans-serif;
+            background-color: #f0f2f5;
+        }
+        .tab-button.active {
+            background-color: #ffffff;
+            border-bottom: 2px solid #3b82f6; /* Blue border for active tab */
+            color: #3b82f6;
+            font-weight: 600;
+        }
+        .table-header {
+            background-color: #e2e8f0; /* Light gray for table headers */
+        }
+        .table-row-even {
+            background-color: #f8fafc; /* Lighter background for even rows */
+        }
+        .table-row-odd {
+            background-color: #ffffff; /* White background for odd rows */
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col">
+    <!-- Header Section -->
+    <header class="bg-gray-100 p-4 border-b border-gray-300 shadow-sm flex items-center justify-between">
+        <div class="flex items-center space-x-2 text-sm text-gray-700">
+            <span class="font-semibold">사업보고</span>
+            <span>></span>
+            <span class="font-semibold">보건소 월별 모니터링 집계결과</span>
+        </div>
+        <div class="flex space-x-2">
+            <button onclick="performSearch()" class="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 transition duration-150 ease-in-out text-sm">조회</button>
+            <button onclick="exportToExcel()" class="px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-50 transition duration-150 ease-in-out text-sm">엑셀</button>
+            <button class="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-opacity-50 transition duration-150 ease-in-out text-sm">닫기</button>
+        </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="flex-grow p-6">
+        <!-- Search Conditions Section -->
+        <section class="bg-white p-6 rounded-lg shadow-md mb-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-center">
+                <div class="flex items-center space-x-2">
+                    <label for="collectionMonth" class="text-sm font-medium text-gray-700 w-20">집계년월</label>
+                    <input type="month" id="collectionMonth" value="2024-12" class="flex-grow p-2 border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                <div class="flex items-center space-x-2">
+                    <label for="region" class="text-sm font-medium text-gray-700 w-20">지역</label>
+                    <select id="region" class="flex-grow p-2 border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500">
+                        <option value="전체">전체</option>
+                        <option value="서울특별시">서울특별시</option>
+                        <option value="부산광역시">부산광역시</option>
+                        <option value="대구광역시">대구광역시</option>
+                        <option value="인천광역시">인천광역시</option>
+                        <option value="광주광역시">광주광역시</option>
+                        <option value="대전광역시">대전광역시</option>
+                        <option value="울산광역시">울산광역시</option>
+                        <option value="세종특별자치시">세종특별자치시</option>
+                        <option value="경기도">경기도</option>
+                        <option value="강원특별자치도">강원특별자치도</option>
+                        <option value="충청북도">충청북도</option>
+                        <option value="충청남도">충청남도</option>
+                        <option value="전라북도">전라북도</option>
+                        <option value="전라남도">전라남도</option>
+                        <option value="경상북도">경상북도</option>
+                        <option value="경상남도">경상남도</option>
+                        <option value="제주특별자치도">제주특별자치도</option>
+                    </select>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <label for="institution" class="text-sm font-medium text-gray-700 w-20">기관</label>
+                    <select id="institution" class="flex-grow p-2 border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500">
+                        <option value="전체">전체</option>
+                        <option value="서울종로구보건소">서울종로구보건소</option>
+                        <option value="서울특별시장">서울특별시장</option>
+                        <option value="서울중구보건소">서울중구보건소</option>
+                        <option value="서울용산구보건소">서울용산구보건소</option>
+                        <option value="서울성동구보건소">서울성동구보건소</option>
+                        <option value="서울광진구보건소">서울광진구보건소</option>
+                        <option value="서울동대문구보건소">서울동대문구보건소</option>
+                        <option value="서울중랑구보건소">서울중랑구보건소</option>
+                        <option value="서울성북구보건소">서울성북구보건소</option>
+                        <option value="서울강북구보건소">서울강북구보건소</option>
+                        <option value="서울도봉구보건소">서울도봉구보건소</option>
+                        <option value="서울노원구보건소">서울노원구보건소</option>
+                        <option value="서울은평구보건소">서울은평구보건소</option>
+                        <option value="서울서대문구보건소">서울서대문구보건소</option>
+                        <option value="서울마포구보건소">서울마포구보건소</option>
+                        <option value="서울양천구보건소">서울양천구보건소</option>
+                        <option value="서울강서구보건소">서울강서구보건소</option>
+                        <option value="서울구로구보건소">서울구로구보건소</option>
+                        <option value="서울금천구보건소">서울금천구보건소</option>
+                        <option value="서울영등포구보건소">서울영등포구보건소</option>
+                        <option value="서울동작구보건소">서울동작구보건소</option>
+                        <option value="서울관악구보건소">서울관악구보건소</option>
+                        <option value="서울서초구보건소">서울서초구보건소</option>
+                        <option value="서울강남구보건소">서울강남구보건소</option>
+                        <option value="서울송파구보건소">서울송파구보건소</option>
+                        <option value="서울강동구보건소">서울강동구보건소</option>
+                        <option value="경기수원시보건소">경기수원시보건소</option>
+                        <option value="경기성남시보건소">경기성남시보건소</option>
+                        <option value="부산해운대구보건소">부산해운대구보건소</option>
+                        <option value="인천남동구보건소">인천남동구보건소</option>
+                        <option value="대전서구보건소">대전서구보건소</option>
+                        <option value="제주시보건소">제주시보건소</option>
+                        <option value="춘천시보건소">춘천시보건소</option>
+                        <option value="청주시상당보건소">청주시상당보건소</option>
+                        <option value="전주시보건소">전주시보건소</option>
+                    </select>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <label for="city" class="text-sm font-medium text-gray-700 w-20">시도</label>
+                    <select id="city" class="flex-grow p-2 border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500">
+                        <option value="전체">전체</option>
+                        <option value="보건소">보건소</option>
+                        <option value="시도">시도</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Detailed Conditions Section -->
+            <div class="mt-6 border-t border-gray-200 pt-4">
+                <h4 class="text-sm font-semibold text-gray-800 mb-3">검색 세부 조건</h4>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="flex items-center space-x-4">
+                        <label class="text-sm font-medium text-gray-700 w-40">과태료 감면 여부</label> <!-- Adjusted width -->
+                        <div class="flex items-center space-x-4">
+                            <label class="inline-flex items-center">
+                                <input type="radio" class="form-radio text-blue-600" name="fineReductionFilter" value="all" checked>
+                                <span class="ml-2 text-sm text-gray-700">상관없음</span>
+                            </label>
+                            <label class="inline-flex items-center">
+                                <input type="radio" class="form-radio text-blue-600" name="fineReductionFilter" value="include">
+                                <span class="ml-2 text-sm text-gray-700">포함</span>
+                            </label>
+                            <label class="inline-flex items-center">
+                                <input type="radio" class="form-radio text-blue-600" name="fineReductionFilter" value="exclude">
+                                <span class="ml-2 text-sm text-gray-700">제외</span>
+                            </label>
+                        </div>
+                    </div>
+                    <div class="flex items-center space-x-4">
+                        <label class="text-sm font-medium text-gray-700 w-40">손목닥터9988 참여 여부</label> <!-- Adjusted width -->
+                        <div class="flex items-center space-x-4">
+                            <label class="inline-flex items-center">
+                                <input type="radio" class="form-radio text-blue-600" name="wristDoctorFilter" value="all" checked>
+                                <span class="ml-2 text-sm text-gray-700">상관없음</span>
+                            </label>
+                            <label class="inline-flex items-center">
+                                <input type="radio" class="form-radio text-blue-600" name="wristDoctorFilter" value="include">
+                                <span class="ml-2 text-sm text-gray-700">포함</span>
+                            </label>
+                            <label class="inline-flex items-center">
+                                <input type="radio" class="form-radio text-blue-600" name="wristDoctorFilter" value="exclude">
+                                <span class="ml-2 text-sm text-gray-700">제외</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex justify-end mt-4 space-x-2">
+                <button onclick="performSearch()" class="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 transition duration-150 ease-in-out text-sm">조회</button>
+            </div>
+        </section>
+
+        <!-- Tabbed Interface and Table Section -->
+        <section class="bg-white rounded-lg shadow-md overflow-hidden">
+            <!-- Tabs -->
+            <div class="flex border-b border-gray-200">
+                <button id="tab-population" class="tab-button px-6 py-3 text-gray-600 hover:text-blue-500 focus:outline-none transition duration-150 ease-in-out text-sm rounded-tl-lg" onclick="showTab('population')">인구</button>
+                <button id="tab-registration" class="tab-button px-6 py-3 text-gray-600 hover:text-blue-500 focus:outline-none transition duration-150 ease-in-out text-sm" onclick="showTab('registration')">등록</button>
+                <button id="tab-smoking-cessation" class="tab-button px-6 py-3 text-gray-600 hover:text-blue-500 focus:outline-none transition duration-150 ease-in-out text-sm active" onclick="showTab('smoking-cessation')">금연 성공률</button>
+                <button id="tab-evaluation" class="tab-button px-6 py-3 text-gray-600 hover:text-blue-500 focus:outline-none transition duration-150 ease-in-out text-sm rounded-tr-lg" onclick="showTab('evaluation')">정부합동평가</button>
+            </div>
+
+            <!-- Tab Content -->
+            <div id="tab-content-smoking-cessation" class="p-6">
+                <h3 class="text-base font-semibold text-gray-800 mb-4">금연 성공률</h3>
+                <div class="overflow-x-auto rounded-lg border border-gray-200">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="table-header">
+                            <tr>
+                                <th rowspan="2" class="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider border-r border-gray-300">순번</th>
+                                <th rowspan="2" class="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider border-r border-gray-300">지역</th>
+                                <th rowspan="2" class="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider border-r border-gray-300">기관명</th>
+                                <th colspan="4" class="px-4 py-3 text-center text-xs font-medium text-gray-700 uppercase tracking-wider border-r border-gray-300">4주 금연 성공률</th>
+                                <th rowspan="2" class="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">6주 경과자</th>
+                            </tr>
+                            <tr>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider border-r border-gray-300">4주 경과자</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider border-r border-gray-300">4주 성공자</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider border-r border-gray-300">성공률</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider border-r border-gray-300">측정 성공자수</th>
+                            </tr>
+                        </thead>
+                        <tbody id="data-table-body" class="divide-y divide-gray-200">
+                            <!-- Data will be populated here by JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Other Tab Contents (hidden by default) -->
+            <div id="tab-content-population" class="p-6 hidden">
+                <h3 class="text-base font-semibold text-gray-800 mb-4">인구 정보</h3>
+                <p class="text-gray-600">인구 관련 데이터가 여기에 표시됩니다.</p>
+            </div>
+            <div id="tab-content-registration" class="p-6 hidden">
+                <h3 class="text-base font-semibold text-gray-800 mb-4">등록 정보</h3>
+                <p class="text-gray-600">등록 관련 데이터가 여기에 표시됩니다.</p>
+            </div>
+            <div id="tab-content-evaluation" class="p-6 hidden">
+                <h3 class="text-base font-semibold text-gray-800 mb-4">정부합동평가 정보</h3>
+                <p class="text-gray-600">정부합동평가 관련 데이터가 여기에 표시됩니다.</p>
+            </div>
+        </section>
+
+        <!-- Monthly Performance Summary Section -->
+        <section class="mt-6">
+            <h3 class="text-base font-semibold text-gray-800 mb-4">월별 실적 집계 내용</h3>
+            <div class="bg-white p-6 rounded-lg shadow-md">
+                <p class="text-gray-600">월별 실적 집계 내용이 여기에 표시됩니다. (현재는 플레이스홀더)</p>
+            </div>
+        </section>
+
+        <!-- Improvement Explanation Section -->
+        <section class="mt-6">
+            <h3 class="text-base font-semibold text-gray-800 mb-4">개선사항 설명</h3>
+            <div class="bg-white p-6 rounded-lg shadow-md border border-blue-300">
+                <p class="text-gray-700 mb-2">
+                    1. (문제점)
+                    과태료 감면 대상자의 경우 3개월 1일 이상이면 모두 성공자로 구분되나, 우리 금연클리닉 사업의 경우 6개월 성공자 여부 통계를 중요시하고 있어
+                    과태료 감면을 위해 금연클리닉에 등록하여 참여한 사람의 정보가 전체 금연클리닉 성공율을 깍아내리고 있음
+                </p>
+                <p class="text-gray-700 mb-2">
+                    2. (개선점)
+                    본 화면에서는 **'검색 세부 조건'**을 통해 **'과태료 감면 여부'**와 **'손목닥터9988 참여 여부'**를 다양한 조합으로 분리하여 조회 및 관리할 수 있도록 개선되었습니다.
+                    이를 통해 각 그룹의 통계를 명확하게 파악하고, 금연클리닉 사업의 실제 성과를 정확히 평가할 수 있습니다.
+                </p>
+                <p class="text-gray-700">
+                    그리고 대상자 등록화면에도 "과태료감면 신청사 여부" 항목을 필수항목으로 입력받도록 수정/관리
+                </p>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        // Sample data for the table
+        // Added boolean flags for participant types for more granular filtering
+        const allData = [
+            // 금연클리닉 참여자 (Clinic Participant Only)
+            { id: 1, isClinicParticipant: true, isFineReductionBeneficiary: false, isWristDoctorParticipant: false, region: "서울특별시", institution: "서울종로구보건소", fourWeekPassers: 34784, fourWeekSuccessors: 21163, successRate: "60.8%", measuredSuccessors: 1179, sixWeekPassers: 34721 },
+            { id: 2, isClinicParticipant: true, isFineReductionBeneficiary: false, isWristDoctorParticipant: false, region: "서울특별시", institution: "서울중구보건소", fourWeekPassers: 28000, fourWeekSuccessors: 17000, successRate: "60.7%", measuredSuccessors: 950, sixWeekPassers: 27900 },
+            { id: 3, isClinicParticipant: true, isFineReductionBeneficiary: false, isWristDoctorParticipant: false, region: "대전광역시", institution: "대전서구보건소", fourWeekPassers: 11000, fourWeekSuccessors: 6800, successRate: "61.8%", measuredSuccessors: 420, sixWeekPassers: 10900 },
+            { id: 4, isClinicParticipant: true, isFineReductionBeneficiary: false, isWristDoctorParticipant: false, region: "강원특별자치도", institution: "춘천시보건소", fourWeekPassers: 8000, fourWeekSuccessors: 4800, successRate: "60.0%", measuredSuccessors: 280, sixWeekPassers: 7900 },
+            { id: 5, isClinicParticipant: true, isFineReductionBeneficiary: false, isWristDoctorParticipant: false, region: "경상남도", institution: "창원시마산보건소", fourWeekPassers: 9000, fourWeekSuccessors: 5800, successRate: "64.4%", measuredSuccessors: 380, sixWeekPassers: 8900 },
+            { id: 6, isClinicParticipant: true, isFineReductionBeneficiary: false, isWristDoctorParticipant: false, region: "경상북도", institution: "포항북구보건소", fourWeekPassers: 11000, fourWeekSuccessors: 7000, successRate: "63.6%", measuredSuccessors: 450, sixWeekPassers: 10900 },
+
+            // 과태료 감면 대상자 (Fine Reduction Beneficiary Only - not necessarily clinic participant)
+            { id: 7, isClinicParticipant: false, isFineReductionBeneficiary: true, isWristDoctorParticipant: false, region: "경기도", institution: "경기성남시보건소", fourWeekPassers: 12000, fourWeekSuccessors: 6500, successRate: "54.2%", measuredSuccessors: 400, sixWeekPassers: 11900 },
+            { id: 8, isClinicParticipant: false, isFineReductionBeneficiary: true, isWristDoctorParticipant: false, region: "울산광역시", institution: "울산남구보건소", fourWeekPassers: 6000, fourWeekSuccessors: 3200, successRate: "53.3%", measuredSuccessors: 180, sixWeekPassers: 5900 },
+
+            // 손목닥터9988 참여자 (Wrist Doctor Participant Only - not necessarily clinic participant)
+            { id: 9, isClinicParticipant: false, isFineReductionBeneficiary: false, isWristDoctorParticipant: true, region: "인천광역시", institution: "인천남동구보건소", fourWeekPassers: 9500, fourWeekSuccessors: 5000, successRate: "52.6%", measuredSuccessors: 300, sixWeekPassers: 9400 },
+            { id: 10, isClinicParticipant: false, isFineReductionBeneficiary: false, isWristDoctorParticipant: true, region: "서울특별시", institution: "서울송파구보건소", fourWeekPassers: 10000, fourWeekSuccessors: 5500, successRate: "55.0%", measuredSuccessors: 320, sixWeekPassers: 9900 },
+            { id: 11, isClinicParticipant: false, isFineReductionBeneficiary: false, isWristDoctorParticipant: true, region: "광주광역시", institution: "광주서구보건소", fourWeekPassers: 8000, fourWeekSuccessors: 4500, successRate: "56.3%", measuredSuccessors: 280, sixWeekPassers: 7900 },
+
+            // 금연클리닉 참여자 + 과태료 감면 대상자
+            { id: 12, isClinicParticipant: true, isFineReductionBeneficiary: true, isWristDoctorParticipant: false, region: "경기도", institution: "경기수원시보건소", fourWeekPassers: 15200, fourWeekSuccessors: 8500, successRate: "55.9%", measuredSuccessors: 500, sixWeekPassers: 15100 },
+            { id: 13, isClinicParticipant: true, isFineReductionBeneficiary: true, isWristDoctorParticipant: false, region: "서울특별시", institution: "서울마포구보건소", fourWeekPassers: 19000, fourWeekSuccessors: 11500, successRate: "60.5%", measuredSuccessors: 680, sixWeekPassers: 18900 },
+            { id: 14, isClinicParticipant: true, isFineReductionBeneficiary: true, isWristDoctorParticipant: false, region: "서울특별시", institution: "서울구로구보건소", fourWeekPassers: 14000, fourWeekSuccessors: 7800, successRate: "55.7%", measuredSuccessors: 450, sixWeekPassers: 13900 },
+            { id: 15, isClinicParticipant: true, isFineReductionBeneficiary: true, isWristDoctorParticipant: false, region: "대구광역시", institution: "대구수성구보건소", fourWeekPassers: 13000, fourWeekSuccessors: 7500, successRate: "57.7%", measuredSuccessors: 480, sixWeekPassers: 12900 },
+            { id: 16, isClinicParticipant: true, isFineReductionBeneficiary: true, isWristDoctorParticipant: false, region: "서울특별시", institution: "서울서초구보건소", fourWeekPassers: 16000, fourWeekSuccessors: 9800, successRate: "61.3%", measuredSuccessors: 580, sixWeekPassers: 15900 },
+
+            // 금연클리닉 참여자 + 손목닥터9988 참여자
+            { id: 17, isClinicParticipant: true, isFineReductionBeneficiary: false, isWristDoctorParticipant: true, region: "서울특별시", institution: "서울강남구보건소", fourWeekPassers: 18000, fourWeekSuccessors: 11000, successRate: "61.1%", measuredSuccessors: 600, sixWeekPassers: 17900 },
+            { id: 18, isClinicParticipant: true, isFineReductionBeneficiary: false, isWristDoctorParticipant: true, region: "서울특별시", institution: "서울영등포구보건소", fourWeekPassers: 25000, fourWeekSuccessors: 15500, successRate: "62.0%", measuredSuccessors: 800, sixWeekPassers: 24900 },
+            { id: 19, isClinicParticipant: true, isFineReductionBeneficiary: false, isWristDoctorParticipant: true, region: "전라북도", institution: "전주시보건소", fourWeekPassers: 7500, fourWeekSuccessors: 4000, successRate: "53.3%", measuredSuccessors: 230, sixWeekPassers: 7400 },
+            { id: 20, isClinicParticipant: true, isFineReductionBeneficiary: false, isWristDoctorParticipant: true, region: "서울특별시", institution: "서울강동구보건소", fourWeekPassers: 17000, fourWeekSuccessors: 10500, successRate: "61.8%", measuredSuccessors: 620, sixWeekPassers: 16900 },
+
+            // 금연클리닉 참여자 + 과태료 감면 대상자 + 손목닥터9988 참여자 (모두 해당)
+            { id: 21, isClinicParticipant: true, isFineReductionBeneficiary: true, isWristDoctorParticipant: true, region: "부산광역시", institution: "부산해운대구보건소", fourWeekPassers: 22000, fourWeekSuccessors: 13000, successRate: "59.1%", measuredSuccessors: 750, sixWeekPassers: 21900 },
+            { id: 22, isClinicParticipant: true, isFineReductionBeneficiary: true, isWristDoctorParticipant: true, region: "제주특별자치도", institution: "제주시보건소", fourWeekPassers: 7000, fourWeekSuccessors: 4200, successRate: "60.0%", measuredSuccessors: 250, sixWeekPassers: 6900 },
+            { id: 23, isClinicParticipant: true, isFineReductionBeneficiary: true, isWristDoctorParticipant: true, region: "충청북도", institution: "청주시상당보건소", fourWeekPassers: 10000, fourWeekSuccessors: 6000, successRate: "60.0%", measuredSuccessors: 350, sixWeekPassers: 9900 },
+            { id: 24, isClinicParticipant: true, isFineReductionBeneficiary: true, isWristDoctorParticipant: true, region: "세종특별자치시", institution: "세종보건소", fourWeekPassers: 5000, fourWeekSuccessors: 3000, successRate: "60.0%", measuredSuccessors: 150, sixWeekPassers: 4900 },
+            { id: 25, isClinicParticipant: true, isFineReductionBeneficiary: true, isWristDoctorParticipant: true, region: "충청남도", institution: "천안서북구보건소", fourWeekPassers: 9000, fourWeekSuccessors: 5400, successRate: "60.0%", measuredSuccessors: 300, sixWeekPassers: 8900 }
+        ];
+
+        // Global variable to store the currently filtered data
+        let currentFilteredData = [];
+
+        // Function to populate the table
+        function populateTable(data) {
+            const tableBody = document.getElementById('data-table-body');
+            tableBody.innerHTML = ''; // Clear existing rows
+            currentFilteredData = data; // Store the filtered data globally
+
+            if (data.length === 0) {
+                tableBody.innerHTML = `<tr><td colspan="9" class="px-4 py-4 text-center text-sm text-gray-500">검색 결과가 없습니다.</td></tr>`;
+                return;
+            }
+
+            data.forEach((row, index) => {
+                const tr = document.createElement('tr');
+                tr.className = index % 2 === 0 ? 'table-row-even' : 'table-row-odd'; // Apply alternating row colors
+                tr.innerHTML = `
+                    <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-800 border-r border-gray-200">${row.id}</td>
+                    <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-800 border-r border-gray-200">${row.region}</td>
+                    <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-800 border-r border-gray-200">${row.institution}</td>
+                    <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-800 border-r border-gray-200">${row.fourWeekPassers.toLocaleString()}</td>
+                    <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-800 border-r border-gray-200">${row.fourWeekSuccessors.toLocaleString()}</td>
+                    <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-800 border-r border-gray-200">${row.successRate}</td>
+                    <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-800 border-r border-gray-200">${row.measuredSuccessors.toLocaleString()}</td>
+                    <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-800">${row.sixWeekPassers.toLocaleString()}</td>
+                `;
+                tableBody.appendChild(tr);
+            });
+        }
+
+        // Function to handle tab switching
+        function showTab(tabId) {
+            // Hide all tab contents
+            document.querySelectorAll('[id^="tab-content-"]').forEach(content => {
+                content.classList.add('hidden');
+            });
+            // Deactivate all tab buttons
+            document.querySelectorAll('.tab-button').forEach(button => {
+                button.classList.remove('active');
+            });
+
+            // Show the selected tab content
+            document.getElementById(`tab-content-${tabId}`).classList.remove('hidden');
+            // Activate the selected tab button
+            document.getElementById(`tab-${tabId}`).classList.add('active');
+
+            // If "금연 성공률" tab is selected, perform a search to populate its table
+            if (tabId === 'smoking-cessation') {
+                performSearch();
+            }
+        }
+
+        // Function to get selected radio button value by name
+        function getSelectedRadioValue(name) {
+            const radios = document.getElementsByName(name);
+            for (let i = 0; i < radios.length; i++) {
+                if (radios[i].checked) {
+                    return radios[i].value;
+                }
+            }
+            return 'all'; // Default to 'all' if none checked (shouldn't happen with default checked)
+        }
+
+        // Function to perform search based on selected criteria
+        function performSearch() {
+            const selectedRegion = document.getElementById('region').value;
+            const selectedInstitution = document.getElementById('institution').value;
+            const selectedCity = document.getElementById('city').value;
+            const fineReductionFilter = getSelectedRadioValue('fineReductionFilter');
+            const wristDoctorFilter = getSelectedRadioValue('wristDoctorFilter');
+
+            let filteredData = allData.filter(item => {
+                // Region filter
+                const regionMatch = selectedRegion === "전체" || item.region === selectedRegion;
+
+                // Institution filter
+                const institutionMatch = selectedInstitution === "전체" || item.institution === selectedInstitution;
+
+                // City (시도) filter - refined logic
+                let cityMatch = true;
+                if (selectedCity === "보건소") {
+                    cityMatch = item.institution.includes("보건소");
+                } else if (selectedCity === "시도") {
+                    cityMatch = selectedRegion === "전체" || item.region === selectedRegion; // This implies region must be selected
+                }
+
+                // Fine Reduction Filter
+                let fineReductionMatch = true;
+                if (fineReductionFilter === "include") {
+                    fineReductionMatch = item.isFineReductionBeneficiary;
+                } else if (fineReductionFilter === "exclude") {
+                    fineReductionMatch = !item.isFineReductionBeneficiary;
+                }
+
+                // Wrist Doctor Filter
+                let wristDoctorMatch = true;
+                if (wristDoctorFilter === "include") {
+                    wristDoctorMatch = item.isWristDoctorParticipant;
+                } else if (wristDoctorFilter === "exclude") {
+                    wristDoctorMatch = !item.isWristDoctorParticipant;
+                }
+                
+                // Since "금연클리닉 참여 여부" filter is removed, we assume all data is potentially
+                // part of "금연클리닉 참여자" unless explicitly excluded by other filters.
+                // If you need to filter for only clinic participants by default,
+                // you would add a condition here like:
+                // let clinicParticipantExplicitMatch = item.isClinicParticipant;
+                // return clinicParticipantExplicitMatch && regionMatch && institutionMatch && cityMatch && fineReductionMatch && wristDoctorMatch;
+
+                return regionMatch && institutionMatch && cityMatch && fineReductionMatch && wristDoctorMatch;
+            });
+
+            populateTable(filteredData);
+        }
+
+        // Function to export current table data to Excel (CSV format)
+        function exportToExcel() {
+            if (currentFilteredData.length === 0) {
+                alert('다운로드할 데이터가 없습니다.'); // Use a custom modal in a real app
+                return;
+            }
+
+            // Get table headers from the currently displayed table
+            const headers = [];
+            const headerRows = document.querySelectorAll('#tab-content-smoking-cessation thead tr');
+
+            // Extract text from the second header row (4주 경과자, 4주 성공자, etc.)
+            // and the main headers (순번, 지역, 기관명, 6주 경과자)
+            const mainHeaders = Array.from(headerRows[0].children)
+                                    .filter(th => th.rowSpan === 2)
+                                    .map(th => th.textContent.trim());
+
+            const subHeaders = Array.from(headerRows[1].children)
+                                   .map(th => th.textContent.trim());
+
+            // Combine headers, handling the colspan for "4주 금연 성공률"
+            headers.push(mainHeaders[0]); // 순번
+            headers.push(mainHeaders[1]); // 지역
+            headers.push(mainHeaders[2]); // 기관명
+            headers.push(subHeaders[0]); // 4주 경과자
+            headers.push(subHeaders[1]); // 4주 성공자
+            headers.push(subHeaders[2]); // 성공률
+            headers.push(subHeaders[3]); // 측정 성공자수
+            headers.push(mainHeaders[3]); // 6주 경과자
+
+            let csvContent = headers.join(',') + '\n'; // Add header row
+
+            currentFilteredData.forEach(row => {
+                const rowData = [
+                    row.id,
+                    row.region,
+                    row.institution,
+                    row.fourWeekPassers,
+                    row.fourWeekSuccessors,
+                    row.successRate,
+                    row.measuredSuccessors,
+                    row.sixWeekPassers
+                ].map(field => `"${String(field).replace(/"/g, '""')}"`).join(','); // Handle commas and quotes in data
+                csvContent += rowData + '\n';
+            });
+
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            if (link.download !== undefined) { // Feature detection for download attribute
+                const url = URL.createObjectURL(blob);
+                link.setAttribute('href', url);
+                link.setAttribute('download', '금연_성공률_집계결과.csv');
+                link.style.visibility = 'hidden';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            } else {
+                // Fallback for older browsers
+                alert('파일 다운로드를 지원하지 않는 브라우저입니다. 내용을 복사하여 사용해주세요.');
+            }
+        }
+
+        // Initial load: show the smoking cessation tab and populate the table
+        document.addEventListener('DOMContentLoaded', () => {
+            showTab('smoking-cessation');
+        });
+    </script>
+</body>
+</html>
