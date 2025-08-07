@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>건강온 금연클리닉</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f4f8; /* Light background */
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        .header {
+            background-color: #ffffff;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        }
+        .header-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 24px;
+            border-bottom: 1px solid #f3f4f6; /* Light gray border */
+        }
+        .header-bottom {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 24px;
+        }
+        .main-nav a {
+            font-weight: 500;
+            color: #4b5563; /* Gray text for main nav */
+            padding: 8px 12px;
+            border-radius: 8px;
+            transition: background-color 0.2s, color 0.2s;
+        }
+        .main-nav a:hover {
+            background-color: #e0f2f7; /* Light blue background on hover */
+            color: #1d4ed8; /* Darker blue text on hover */
+        }
+        .main-content {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            text-align: center;
+            background: linear-gradient(to bottom right, #e0f2f7, #c1e4ed); /* Light gradient background */
+        }
+        .footer {
+            background-color: #374151; /* Dark gray */
+            color: #d1d5db; /* Light gray text */
+            padding: 16px;
+            text-align: center;
+            font-size: 14px;
+        }
+        .card {
+            background-color: #ffffff;
+            border-radius: 16px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            padding: 32px;
+            max-width: 500px; /* Wider card for main content */
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+        .form-container, .success-message, .message-box {
+            background-color: #ffffff;
+            border-radius: 16px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+            padding: 32px;
+            max-width: 440px; /* Increased by 10% from 400px */
+            width: 100%;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 1000;
+            display: none;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 999;
+            display: none;
+        }
+        input[type="text"], input[type="email"], select {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            font-size: 16px;
+            box-sizing: border-box;
+            transition: border-color 0.2s;
+        }
+        input[type="text"]:focus, input[type="email"]:focus, select:focus {
+            outline: none;
+            border-color: #3b82f6;
+        }
+        .checkbox-container, .radio-group {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            margin-top: 10px;
+        }
+        .checkbox-container input[type="checkbox"], .radio-group input[type="radio"] {
+            width: auto;
+            height: auto;
+            margin: 0;
+            transform: scale(1.2);
+        }
+        .button {
+            padding: 14px 24px;
+            border-radius: 10px;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.2s, transform 0.2s, box-shadow 0.2s;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+        }
+        .button-primary {
+            background-image: linear-gradient(to right, #3b82f6, #6366f1); /* Blue to Indigo gradient */
+            color: #ffffff;
+            box-shadow: 0 5px 15px rgba(59, 130, 246, 0.4); /* Blue shadow */
+        }
+        .button-primary:hover {
+            background-image: linear-gradient(to right, #2563eb, #4f46e5); /* Darker gradient on hover */
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(59, 130, 246, 0.5);
+        }
+        .button-secondary {
+            background-color: #e5e7eb;
+            color: #4b5563;
+        }
+        .button-secondary:hover {
+            background-color: #d1d5db;
+            transform: translateY(-2px);
+        }
+        .message-box {
+            text-align: center;
+        }
+        .message-box.error {
+            color: #dc2626; /* Red text for error */
+        }
+        .message-box.success {
+            color: #16a34a; /* Green text for success */
+        }
+        .summary-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px dashed #e5e7eb;
+        }
+        .summary-item:last-child {
+            border-bottom: none;
+        }
+        .summary-label {
+            font-weight: 500;
+            color: #4b5563;
+        }
+        .summary-value {
+            color: #1f2937;
+            font-weight: 600;
+        }
+        .warning-message {
+            color: #dc2626; /* Red color for warning */
+            font-weight: 600;
+            margin-top: 10px;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Header Section -->
+    <header class="header">
+        <!-- Top Navigation Row -->
+        <div class="header-top">
+            <div class="flex items-center text-sm text-gray-500">
+                <img src="https://placehold.co/20x20/3b82f6/ffffff?text=S" alt="서울시 로고" class="h-5 w-5 mr-1 rounded-full">
+                <span>서울특별</span>
+            </div>
+            <nav class="flex items-center space-x-4 text-sm text-gray-600">
+                <a href="#" class="hover:text-blue-500">서울소식</a>
+                <a href="#" class="hover:text-blue-500">응답소</a>
+                <a href="#" class="hover:text-blue-500">정보공개</a>
+                <a href="#" class="hover:text-blue-500">분야별정보</a>
+            </nav>
+        </div>
+
+        <!-- Bottom Navigation Row -->
+        <div class="header-bottom">
+            <!-- Logo/Title on the left -->
+            <div class="flex items-center">
+                <!-- Changed from img to text for "손목닥터9988" -->
+                <span class="text-2xl font-bold text-gray-800 mr-4">손목닥터9988</span>
+            </div>
+            <!-- Main Navigation links on the right -->
+            <nav class="hidden md:flex items-center space-x-6 main-nav">
+                <a href="https://onhealth.seoul.go.kr/plus/web/announcement/business" target="_blank">사업안내</a>
+                <a href="#">안내 및 제휴</a>
+                <a href="#">건강정보</a>
+            </nav>
+            <!-- Mobile menu icon (for future implementation if needed) -->
+            <div class="md:hidden">
+                <button class="text-gray-600 hover:text-blue-500 focus:outline-none">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Page Content -->
+    <main class="main-content">
+        <div class="card">
+            <h2 class="text-4xl font-extrabold text-gray-800 leading-tight">
+                <span class="text-blue-600">보건소 금연클리닉</span>을 <br>신청하시고 금연을 시작하세요!
+            </h2>
+            <p class="text-gray-600 text-lg mt-4">
+                서울시 보건소 금연클리닉에서 여러분의 금연 여정을 함께합니다.
+            </p>
+            <img src="https://placehold.co/400x250/a7d9ed/333333?text=Healthy+Life" alt="건강한 삶 이미지" class="rounded-lg mx-auto shadow-md">
+            <button id="openFormBtn" class="button button-primary mt-6">보건소 금연클리닉 신청하기</button>
+        </div>
+    </main>
+
+    <!-- Footer Section -->
+    <footer class="footer">
+        <p>&copy; 2025 서울시 손목닥터9988. All rights reserved.</p>
+        <p>문의: xxx@seoul.go.kr</p>
+    </footer>
+
+    <!-- Overlay for modals -->
+    <div id="overlay" class="overlay"></div>
+
+    <!-- Application Form Modal -->
+    <div id="applicationForm" class="form-container">
+        <h2 class="text-2xl font-bold text-gray-800 mb-4">보건소 금연클리닉</h2>
+
+        <div class="flex flex-col gap-4">
+            <!-- Removed Health Center Search Input -->
+            <select id="healthCenter" class="w-full" required>
+                <option value="">서비스 이용 원하는 보건소 선택</option>
+                <option value="강남구">강남구 보건소</option>
+                <option value="강동구">강동구 보건소</option>
+                <option value="강북구">강북구 보건소</option>
+                <option value="강서구">강서구 보건소</option>
+                <option value="관악구">관악구 보건소</option>
+                <option value="광진구">광진구 보건소</option>
+                <option value="구로구">구로구 보건소</option>
+                <option value="금천구">금천구 보건소</option>
+                <option value="노원구">노원구 보건소</option>
+                <option value="도봉구">도봉구 보건소</option>
+                <option value="동대문구">동대문구 보건소</option>
+                <option value="동작구">동작구 보건소</option>
+                <option value="마포구">마포구 보건소</option>
+                <option value="서대문구">서대문구 보건소</option>
+                <option value="서초구">서초구 보건소</option>
+                <option value="성동구">성동구 보건소</option>
+                <option value="성북구">성북구 보건소</option>
+                <option value="송파구">송파구 보건소</option>
+                <option value="양천구">양천구 보건소</option>
+                <option value="영등포구">영등포구 보건소</option>
+                <option value="용산구">용산구 보건소</option>
+                <option value="은평구">은평구 보건소</option>
+                <option value="종로구">종로구 보건소</option>
+                <option value="중구">중구 보건소</option>
+                <option value="중랑구">중랑구 보건소</option>
+            </select>
+            <input type="text" id="applicantName" placeholder="이름" required>
+            <input type="text" id="contactNumber" placeholder="연락처 (예: 010-1234-5678)" required>
+            <input type="email" id="email" placeholder="이메일 (선택 사항)">
+            
+            <!-- Radio buttons for Fine Reduction -->
+            <div class="radio-group flex justify-center gap-4 mt-2">
+                <p class="text-gray-700 text-base">과태료 감면 희망자 여부:</p>
+                <input type="radio" id="fineReductionYes" name="fineReduction" value="예">
+                <label for="fineReductionYes" class="text-gray-700 text-base">예</label>
+                <input type="radio" id="fineReductionNo" name="fineReduction" value="아니오">
+                <label for="fineReductionNo" class="text-gray-700 text-base">아니오</label>
+            </div>
+
+            <!-- Radio buttons for existing user -->
+            <div class="radio-group flex justify-center gap-4 mt-2">
+                <p class="text-gray-700 text-base">기존 금연클리닉 이용자 여부:</p>
+                <input type="radio" id="existingUserYes" name="existingUser" value="예">
+                <label for="existingUserYes" class="text-gray-700 text-base">예</label>
+                <input type="radio" id="existingUserNo" name="existingUser" value="아니오">
+                <label for="existingUserNo" class="text-gray-700 text-base">아니오</label>
+            </div>
+        </div>
+
+        <div class="flex justify-end gap-3 mt-6">
+            <button id="closeFormBtn" class="button button-secondary">닫기</button>
+            <button id="submitApplicationBtn" class="button button-primary">신청</button>
+        </div>
+    </div>
+
+    <!-- Success Message Modal -->
+    <div id="successMessage" class="success-message">
+        <h2 class="text-2xl font-bold text-green-600 mb-4">신청 완료!</h2>
+        <!-- Conditional warning message for existing users -->
+        <p id="existingUserWarning" class="warning-message text-center" style="display: none;">
+            기존 보건소 금연클리닉 이용자로 포인트 지급 대상이 아닙니다.
+        </p>
+        <p class="text-gray-700 text-lg">보건소 금연클리닉 신청이 정상적으로 완료되었습니다.</p>
+        <p class="text-gray-600 text-base mb-4">해당 보건소에서 수일 이내에 연락이 올 것입니다.</p>
+        
+        <div class="summary-details text-left w-full border-t border-b border-gray-200 py-4 mb-4">
+            <p class="text-gray-700 font-semibold mb-2">신청 정보 요약:</p>
+            <div class="summary-item">
+                <span class="summary-label">보건소:</span>
+                <span id="summaryHealthCenter" class="summary-value"></span>
+            </div>
+            <div class="summary-item">
+                <span class="summary-label">이름:</span>
+                <span id="summaryApplicantName" class="summary-value"></span>
+            </div>
+            <div class="summary-item">
+                <span class="summary-label">연락처:</span>
+                <span id="summaryContactNumber" class="summary-value"></span>
+            </div>
+            <div class="summary-item">
+                <span class="summary-label">이메일:</span>
+                <span id="summaryEmail" class="summary-value"></span>
+            </div>
+            <div class="summary-item">
+                <span class="summary-label">과태료 감면 희망:</span>
+                <span id="summaryFineReduction" class="summary-value"></span>
+            </div>
+            <div class="summary-item">
+                <span class="summary-label">기존 보건소 금연클리닉 이용자:</span>
+                <span id="summaryExistingUser" class="summary-value"></span>
+            </div>
+        </div>
+
+        <button id="closeSuccessBtn" class="button button-primary mt-6">확인</button>
+    </div>
+
+    <!-- Custom Message Box -->
+    <div id="messageBox" class="message-box form-container">
+        <p id="messageBoxText" class="text-lg"></p>
+        <button id="closeMessageBoxBtn" class="button button-primary mt-4">확인</button>
+    </div>
+
+    <script>
+        // Get references to elements
+        const openFormBtn = document.getElementById('openFormBtn');
+        const applicationForm = document.getElementById('applicationForm');
+        const closeFormBtn = document.getElementById('closeFormBtn');
+        const submitApplicationBtn = document.getElementById('submitApplicationBtn');
+        const successMessage = document.getElementById('successMessage');
+        const closeSuccessBtn = document.getElementById('closeSuccessBtn');
+        const overlay = document.getElementById('overlay');
+
+        const healthCenter = document.getElementById('healthCenter');
+        const applicantName = document.getElementById('applicantName');
+        const contactNumber = document.getElementById('contactNumber');
+        const email = document.getElementById('email');
+        
+        // Get references to the new radio buttons for fine reduction
+        const fineReductionYes = document.getElementById('fineReductionYes');
+        const fineReductionNo = document.getElementById('fineReductionNo');
+
+        // Get references to the existing radio buttons for existing user
+        const existingUserYes = document.getElementById('existingUserYes');
+        const existingUserNo = document.getElementById('existingUserNo');
+
+        const messageBox = document.getElementById('messageBox');
+        const messageBoxText = document.getElementById('messageBoxText');
+        const closeMessageBoxBtn = document.getElementById('closeMessageBoxBtn');
+
+        // References for summary details in success message
+        const summaryHealthCenter = document.getElementById('summaryHealthCenter');
+        const summaryApplicantName = document.getElementById('summaryApplicantName');
+        const summaryContactNumber = document.getElementById('summaryContactNumber');
+        const summaryEmail = document.getElementById('summaryEmail');
+        const summaryFineReduction = document.getElementById('summaryFineReduction');
+        const summaryExistingUser = document.getElementById('summaryExistingUser');
+        const existingUserWarning = document.getElementById('existingUserWarning'); // New element reference
+
+        // Function to show a modal and overlay
+        function showModal(modalElement) {
+            modalElement.style.display = 'flex';
+            overlay.style.display = 'block';
+        }
+
+        // Function to hide a modal and overlay
+        function hideModal(modalElement) {
+            modalElement.style.display = 'none';
+            overlay.style.display = 'none';
+        }
+
+        // Function to show custom message box
+        function showMessageBox(message, type = 'info') {
+            messageBoxText.textContent = message;
+            messageBox.classList.remove('error', 'success'); // Remove previous types
+            if (type === 'error') {
+                messageBox.classList.add('error');
+            } else if (type === 'success') {
+                messageBox.classList.add('success');
+            }
+            showModal(messageBox);
+        }
+
+        // Function to reset radio button group
+        function resetRadioGroup(name) {
+            const radios = document.getElementsByName(name);
+            radios.forEach(radio => {
+                radio.checked = false;
+            });
+        }
+
+        // Function to clear summary details
+        function clearSummaryDetails() {
+            summaryHealthCenter.textContent = '';
+            summaryApplicantName.textContent = '';
+            summaryContactNumber.textContent = '';
+            summaryEmail.textContent = '';
+            summaryFineReduction.textContent = '';
+            summaryExistingUser.textContent = '';
+            existingUserWarning.style.display = 'none'; // Hide the warning message
+        }
+
+        // Event listener to open the application form
+        openFormBtn.addEventListener('click', () => {
+            showModal(applicationForm);
+        });
+
+        // Event listener to close the application form
+        closeFormBtn.addEventListener('click', () => {
+            hideModal(applicationForm);
+            // Clear form fields when closing
+            healthCenter.value = '';
+            applicantName.value = '';
+            contactNumber.value = '';
+            email.value = '';
+            resetRadioGroup('fineReduction'); // Reset fine reduction radios
+            resetRadioGroup('existingUser'); // Reset existing user radios
+            clearSummaryDetails(); // Clear summary details
+        });
+
+        // Event listener for existingUserYes radio button change
+        existingUserYes.addEventListener('change', () => {
+            if (existingUserYes.checked) {
+                showMessageBox('기존 금연클리닉 이용자는 손목닥터 포인트 지급이 되지 않습니다.', 'error');
+                // Removed the logic to reset the radio button selection here.
+                // The '예' selection will persist.
+            }
+        });
+
+        // Event listener for form submission
+        submitApplicationBtn.addEventListener('click', () => {
+            // Basic validation
+            if (healthCenter.value === '') {
+                showMessageBox('보건소를 선택해주세요.', 'error');
+                return;
+            }
+            if (applicantName.value.trim() === '') {
+                showMessageBox('이름을 입력해주세요.', 'error');
+                return;
+            }
+            if (contactNumber.value.trim() === '') {
+                showMessageBox('연락처를 입력해주세요.', 'error');
+                return;
+            }
+
+            // Validate radio button selections and get values
+            let fineReductionValue = '';
+            if (fineReductionYes.checked) {
+                fineReductionValue = fineReductionYes.value;
+            } else if (fineReductionNo.checked) {
+                fineReductionValue = fineReductionNo.value;
+            } else {
+                showMessageBox('과태료 감면 희망 여부를 선택해주세요.', 'error');
+                return;
+            }
+
+            let existingUserValue = '';
+            if (existingUserYes.checked) {
+                existingUserValue = existingUserYes.value;
+            } else if (existingUserNo.checked) {
+                existingUserValue = existingUserNo.value;
+            } else {
+                showMessageBox('기존 금연클리닉 이용자 여부를 선택해주세요.', 'error');
+                return;
+            }
+
+            // Populate summary details in the success message
+            summaryHealthCenter.textContent = healthCenter.options[healthCenter.selectedIndex].text;
+            summaryApplicantName.textContent = applicantName.value;
+            summaryContactNumber.textContent = contactNumber.value;
+            summaryEmail.textContent = email.value || '입력 안 됨'; // Handle optional email
+            summaryFineReduction.textContent = fineReductionValue;
+            summaryExistingUser.textContent = existingUserValue;
+
+            // Show conditional warning message if existing user is '예'
+            if (existingUserYes.checked) {
+                existingUserWarning.style.display = 'block';
+            } else {
+                existingUserWarning.style.display = 'none';
+            }
+
+            // Simulate application submission (in a real app, this would send data to a server)
+            console.log('신청 정보:', {
+                healthCenter: healthCenter.value,
+                applicantName: applicantName.value,
+                contactNumber: contactNumber.value,
+                email: email.value,
+                fineReduction: fineReductionValue, // Include radio button value
+                existingUser: existingUserValue // Include radio button value
+            });
+
+            // Hide the application form and show the success message
+            hideModal(applicationForm);
+            showModal(successMessage);
+
+            // Clear form fields after successful submission
+            healthCenter.value = '';
+            applicantName.value = '';
+            contactNumber.value = '';
+            email.value = '';
+            resetRadioGroup('fineReduction'); // Reset fine reduction radios
+            // Keep existingUser selection as is, do not reset.
+        });
+
+        // Event listener to close the success message
+        closeSuccessBtn.addEventListener('click', () => {
+            hideModal(successMessage);
+            clearSummaryDetails(); // Clear summary details and hide warning when closing success message
+        });
+
+        // Event listener to close custom message box
+        closeMessageBoxBtn.addEventListener('click', () => {
+            hideModal(messageBox);
+        });
+
+        // Close modals if overlay is clicked
+        overlay.addEventListener('click', () => {
+            if (applicationForm.style.display === 'flex') {
+                hideModal(applicationForm);
+            }
+            if (successMessage.style.display === 'flex') {
+                hideModal(successMessage);
+                clearSummaryDetails(); // Clear summary details and hide warning if overlay is clicked and success message is open
+            }
+            if (messageBox.style.display === 'flex') {
+                hideModal(messageBox);
+            }
+        });
+    </script>
+</body>
+</html>
