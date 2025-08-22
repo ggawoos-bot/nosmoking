@@ -102,7 +102,7 @@
 
     <!-- Kakao Maps API Script -->
     <script>
-        const KAKAO_APP_KEY = 'b56d933cb3bcdf1b561bb27982f51566'; // Your Kakao Maps API Key
+        const KAKAO_APP_KEY = '129768458014c00b9a8c5353802e9a79'; // Your Kakao Maps API Key
 
         let kakaoMap = null;
         let mapLoaded = false;
@@ -131,15 +131,40 @@
             }
         }
 
-        // Initialize Kakao Map
+        // Initialize Kakao Map with a sample marker
         function initMap() {
             if (mapContainer && window.kakao && window.kakao.maps) { // Ensure kakao.maps is available
                  const options = {
-                    center: new kakao.maps.LatLng(37.5665, 126.9780), // Default Seoul center
-                    level: 7
+                    center: new kakao.maps.LatLng(37.566826, 126.9786567), // 샘플 마커 위치로 중앙 설정
+                    level: 3 // 샘플 마커가 잘 보이도록 확대
                 };
                 kakaoMap = new kakao.maps.Map(mapContainer, options); // Use mapContainer directly
                 mapLoaded = true;
+
+                // ===== 카카오 지도 샘플 코드 시작: 마커 추가 =====
+                // 마커를 생성합니다
+                const markerPosition  = new kakao.maps.LatLng(37.566826, 126.9786567); 
+                const marker = new kakao.maps.Marker({
+                    position: markerPosition
+                });
+
+                // 마커가 지도 위에 표시되도록 설정합니다
+                marker.setMap(kakaoMap);
+
+                // 마커에 클릭 이벤트를 등록합니다 (클릭 시 정보창을 띄우는 예제)
+                kakao.maps.event.addListener(marker, 'click', function() {
+                    const iwContent = '<div style="padding:5px;">카카오 본사</div>', // 인포윈도우에 표출될 내용으로 HTML 문자열이나 document element가 가능합니다
+                          iwRemoveable = true; // removeable 속성을 ture 로 설정하면 인포윈도도우를 닫을 수 있는 x버튼이 표시됩니다
+
+                    // 인포윈도우를 생성하고 지도에 표시합니다
+                    const infowindow = new kakao.maps.InfoWindow({
+                        content : iwContent,
+                        removable : iwRemoveable
+                    });
+                    infowindow.open(kakaoMap, marker);
+                });
+                // ===== 카카오 지도 샘플 코드 끝 =====
+
             } else {
                 console.error("Kakao Map container or API not found. Cannot initialize map.");
                 apiError = true;
@@ -189,6 +214,7 @@
                         const pos = new kakao.maps.LatLng(position.coords.latitude, position.coords.longitude);
                         kakaoMap.setCenter(pos);
                         kakaoMap.setLevel(3);
+                        // Optionally add a marker for current location
                     },
                     () => {
                         alert('현재 위치를 가져올 수 없습니다. 위치 권한을 확인해주세요.');
