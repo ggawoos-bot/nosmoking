@@ -1,0 +1,403 @@
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+
+// Map container style
+const containerStyle = {
+  width: '100%',
+  height: '80vh', // 80% of viewport height
+};
+
+// Center coordinates for Seoul (temporary, will be adjusted by API data)
+const center = {
+  lat: 37.5665,
+  lng: 126.9780,
+};
+
+// Kakao Maps API Key (provided by user)
+const KAKAO_APP_KEY = 'b56d933cb3bcdf1b561bb27982f51566';
+
+function App() {
+  const mapRef = useRef(null); // Reference to the DOM element where the map will be rendered
+  const kakaoMapRef = useRef(null); // Reference to the Kakao Map instance
+  const markersRef = useRef([]); // Reference to an array of Kakao Map marker instances
+  const infoWindowRef = useRef(null); // Reference to the Kakao Map InfoWindow instance
+
+  const [mapLoaded, setMapLoaded] = useState(false); // State to track if Kakao Maps API script is loaded
+  const [selectedArea, setSelectedArea] = useState(null); // State for the currently selected no-smoking area
+  const [searchTerm, setSearchTerm] = useState(''); // State for the search input
+  const [noSmokingAreas, setNoSmokingAreas] = useState([]); // State for no-smoking area data from API
+  const [filteredAreas, setFilteredAreas] = useState([]); // State for filtered list of areas
+  const [activeTab, setActiveTab] = useState('list'); // 'list' or 'map'
+  const [loading, setLoading] = useState(true); // State to track API data loading
+  const [apiError, setApiError] = useState(false); // State to track API fetch errors
+
+  // Dynamically load the Kakao Maps API script
+  useEffect(() => {
+    // Check if Kakao Maps script is already loaded
+    if (window.kakao && window.kakao.maps) {
+      setMapLoaded(true);
+      return;
+    }
+
+    const script = document.createElement('script');
+    // Removed &autoload=false to allow script to load automatically
+    script.src = `//dapi.kakao.com/v2/maps/sdk.js?appkey=${KAKAO_APP_KEY}`; 
+    script.async = true;
+    script.defer = true;
+    document.head.appendChild(script);
+
+    script.onload = () => {
+      // With autoload=false removed, map initialization happens directly without window.kakao.maps.load
+      // We still use a small delay to ensure everything is ready
+      setTimeout(() => {
+        if (window.kakao && window.kakao.maps) {
+          setMapLoaded(true);
+        } else {
+          console.error("Kakao Maps API script loaded but window.kakao.maps is not defined.");
+          setApiError(true);
+          setLoading(false);
+        }
+      }, 100); 
+    };
+
+    script.onerror = () => {
+      console.error("Kakao Maps API script failed to load.");
+      // Handle script loading error, e.g., show a message to the user
+      // Since map cannot be loaded, set loading to false and indicate error
+      setLoading(false);
+      setApiError(true); 
+    };
+
+    return () => {
+      // Cleanup: remove the script when the component unmounts
+      if (document.head.contains(script)) {
+        document.head.removeChild(script);
+      }
+    };
+  }, []);
+
+  // Fetch no-smoking area data from the Seoul Open API
+  useEffect(() => {
+    const fetchNoSmokingData = async () => {
+      setLoading(true);
+      setApiError(false); // Reset API error state
+      const seoulApiKey = "66734e706b67617736344b52704b67"; // Your Seoul Open API Key (provided by user)
+      const startIdx = 1;
+      const endIdx = 5; // Fetch only 5 records as requested
+      const url = `http://openapi.seoul.go.kr:8088/${seoulApiKey}/xml/tbPrhSmkArea/${startIdx}/${endIdx}/`;
+
+      try {
+        const response = await fetch(url);
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const text = await response.text();
+        const parser = new DOMParser();
+        const xmlDoc = parser.parseFromString(text, "application/xml");
+        
+        const items = xmlDoc.getElementsByTagName('row');
+        const parsedAreas = Array.from(items).map((item, index) => {
+          const latitude = parseFloat(item.getElementsByTagName('Y_DNTS')[0]?.textContent || '0');
+          const longitude = parseFloat(item.getElementsByTagName('X_CNTS')[0]?.textContent || '0');
+          const name = item.getElementsByTagName('SM_NM')[0]?.textContent || `금연구역 ${startIdx + index}`;
+          const address = item.getElementsByTagName('SM_ADRES1')[0]?.textContent || '주소 정보 없음';
+          const description = item.getElementsByTagName('SM_CN')[0]?.textContent || '설명 없음';
+          const type = item.getElementsByTagName('SM_WDR_NM')[0]?.textContent || '유형 없음'; // 구역분류명
+
+          return {
+            id: `api_${startIdx + index}`, // Unique ID for each API item
+            name: name,
+            lat: latitude,
+            lng: longitude,
+            description: description,
+            address: address,
+            type: type,
+          };
+        }).filter(area => area.lat !== 0 && area.lng !== 0); // Filter out invalid coordinates
+
+        if (parsedAreas.length === 0) {
+          console.warn("API fetched no valid no-smoking areas. Please check the API response or key.");
+          setApiError(true); // Indicate that API data was not successfully loaded
+        } else {
+          setNoSmokingAreas(parsedAreas);
+          setFilteredAreas(parsedAreas); // Initialize filtered areas with all fetched data
+        }
+      } catch (error) {
+        console.error("Error fetching no-smoking area data:", error);
+        setApiError(true); // Set API error state to true
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    // Only attempt to fetch data if map script has loaded successfully
+    // This helps prevent redundant API calls if Kakao Maps itself failed to load
+    if (mapLoaded && !apiError) { // Ensure mapLoaded is true and no prior API error
+      fetchNoSmokingData();
+    } else if (!mapLoaded && !loading) { // If map script failed to load initially
+      setApiError(true); // Propagate error to API data as well
+    }
+  }, [mapLoaded]); // Depend on mapLoaded to trigger API fetch
+
+  // Initialize Kakao Map and create markers once the script is loaded and component mounted
+  useEffect(() => {
+    if (mapLoaded && mapRef.current && filteredAreas.length > 0) { // Ensure filteredAreas are loaded
+      // If map is not already initialized, create a new one
+      if (!kakaoMapRef.current) {
+        const mapOption = {
+          center: new window.kakao.maps.LatLng(center.lat, center.lng), // Initial center
+          level: 7, // Initial zoom level
+        };
+        kakaoMapRef.current = new window.kakao.maps.Map(mapRef.current, mapOption);
+
+        // Create a single InfoWindow instance to be reused
+        infoWindowRef.current = new window.kakao.maps.InfoWindow({ zIndex: 1 });
+      }
+
+      // Clear existing markers before creating new ones
+      markersRef.current.forEach(marker => marker.setMap(null));
+      markersRef.current = [];
+
+      const bounds = new window.kakao.maps.LatLngBounds();
+
+      // Create new markers for filtered areas and add them to the map
+      filteredAreas.forEach(area => {
+        const position = new window.kakao.maps.LatLng(area.lat, area.lng);
+        const marker = new window.kakao.maps.Marker({
+          map: kakaoMapRef.current,
+          position: position,
+          title: area.name,
+        });
+
+        // Add click listener to display InfoWindow when marker is clicked
+        window.kakao.maps.event.addListener(marker, 'click', () => {
+          setSelectedArea(area);
+        });
+        markersRef.current.push(marker);
+        bounds.extend(position); // Extend bounds to include this marker
+      });
+
+      // Fit map to include all markers
+      if (!bounds.isEmpty()) {
+          kakaoMapRef.current.setBounds(bounds);
+      }
+    } else if (mapLoaded && mapRef.current && filteredAreas.length === 0 && !loading && !apiError) {
+      // If map loaded but no areas, ensure map is still initialized if not already
+      // And ensure no general API errors before trying to init empty map
+       if (!kakaoMapRef.current) {
+        const mapOption = {
+          center: new window.kakao.maps.LatLng(center.lat, center.lng),
+          level: 7,
+        };
+        kakaoMapRef.current = new window.kakao.maps.Map(mapRef.current, mapOption);
+        infoWindowRef.current = new window.kakao.maps.InfoWindow({ zIndex: 1 });
+      }
+      // Clear all markers if no filtered areas
+      markersRef.current.forEach(marker => marker.setMap(null));
+      markersRef.current = [];
+    }
+  }, [mapLoaded, filteredAreas, loading, apiError]); // Re-run this effect when mapLoaded or filteredAreas state changes
+
+  // Update and display InfoWindow when a new area is selected
+  useEffect(() => {
+    if (selectedArea && infoWindowRef.current && kakaoMapRef.current) {
+      // Find the marker corresponding to the selected area (Kakao maps uses latlng objects for position)
+      const selectedMarker = markersRef.current.find(m =>
+        m.getPosition().getLat() === selectedArea.lat &&
+        m.getPosition().getLng() === selectedArea.lng
+      );
+
+      if (selectedMarker) {
+        // Set InfoWindow content
+        const content = `<div class="p-2 bg-white rounded-lg shadow-md text-gray-900" style="min-width:150px;">
+                            <h3 class="font-bold text-lg mb-1">${selectedArea.name}</h3>
+                            <p class="text-sm text-gray-700 mb-1">${selectedArea.description}</p>
+                            <p class="text-xs text-gray-500">주소: ${selectedArea.address}</p>
+                            <p class="text-xs text-gray-500">유형: ${selectedArea.type}</p>
+                        </div>`;
+        infoWindowRef.current.setContent(content);
+        // Open InfoWindow on the selected marker
+        infoWindowRef.current.open(kakaoMapRef.current, selectedMarker.getPosition()); // Use marker's position
+        // Pan the map to the selected marker's position
+        kakaoMapRef.current.panTo(selectedMarker.getPosition());
+      }
+    } else if (!selectedArea && infoWindowRef.current) {
+      // If no area is selected, close the InfoWindow
+      infoWindowRef.current.close();
+    }
+  }, [selectedArea]); // Re-run this effect when selectedArea state changes
+
+  // Handle search input change
+  const handleSearchChange = (event) => {
+    setSearchTerm(event.target.value);
+  };
+
+  // Perform search when search term changes
+  useEffect(() => {
+    const lowerCaseSearchTerm = searchTerm.toLowerCase();
+    const filtered = noSmokingAreas.filter(area =>
+      area.name.toLowerCase().includes(lowerCaseSearchTerm) ||
+      area.address.toLowerCase().includes(lowerCaseSearchTerm) ||
+      area.description.toLowerCase().includes(lowerCaseSearchTerm) ||
+      area.type.toLowerCase().includes(lowerCaseSearchTerm)
+    );
+    setFilteredAreas(filtered);
+    setSelectedArea(null); // Clear selected area when search changes
+  }, [searchTerm, noSmokingAreas]); // Depend on noSmokingAreas to re-filter when API data loads
+
+
+  // Handle clicking on a list item
+  const handleListItemClick = (area) => {
+    setSelectedArea(area);
+    if (kakaoMapRef.current) {
+      kakaoMapRef.current.panTo(new window.kakao.maps.LatLng(area.lat, area.lng));
+      kakaoMapRef.current.setLevel(3); // Zoom in when selecting from list
+    }
+  };
+
+  // Handler for "My Location" button (placeholder functionality)
+  const handleMyLocation = () => {
+    if (navigator.geolocation && kakaoMapRef.current) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const pos = new window.kakao.maps.LatLng(position.coords.latitude, position.coords.longitude);
+          kakaoMapRef.current.setCenter(pos);
+          kakaoMapRef.current.setLevel(3); // Zoom in on current location
+          // Optionally add a marker for current location
+          // new window.kakao.maps.Marker({ position: pos, map: kakaoMapRef.current, title: "My Location", image: new window.kakao.maps.MarkerImage('https://t1.daumcdn.net/localimg/localimages/07/mapapidoc/marker_red.png', new window.kakao.maps.Size(30, 30)) });
+        },
+        () => {
+          // Handle geolocation error
+          alert('현재 위치를 가져올 수 없습니다. 위치 권한을 확인해주세요.'); // Using alert for simplicity, replace with custom UI in production
+        }
+      );
+    } else {
+      alert('이 브라우저는 지오로케이션을 지원하지 않습니다.'); // Using alert for simplicity, replace with custom UI in production
+    }
+  };
+
+
+  return (
+    <div className="min-h-screen bg-gray-100 p-4 font-inter flex flex-col lg:flex-row">
+      {/* Left Sidebar for Search and List */}
+      <aside className="w-full lg:w-1/3 p-4 bg-white rounded-lg shadow-xl mb-4 lg:mb-0 lg:mr-4 flex flex-col">
+        <h2 className="text-2xl font-bold text-gray-800 mb-4">금연구역 검색</h2>
+        
+        {/* Search Input */}
+        <div className="mb-4">
+          <input
+            type="text"
+            placeholder="주소, 장소명 등으로 검색..."
+            className="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-700"
+            value={searchTerm}
+            onChange={handleSearchChange}
+          />
+        </div>
+
+        {/* Action Buttons */}
+        <div className="flex justify-between mb-4 space-x-2">
+            <button
+                onClick={handleMyLocation}
+                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors duration-200 shadow-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+            >
+                <i className="fas fa-location-arrow mr-2"></i> 내 위치
+            </button>
+            <button
+                onClick={() => setActiveTab('list')}
+                className={`flex-1 px-4 py-2 rounded-md transition-colors duration-200 shadow-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm ${
+                    activeTab === 'list' ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                }`}
+            >
+                <i className="fas fa-list mr-2"></i> 목록
+            </button>
+            <button
+                onClick={() => setActiveTab('map')}
+                className={`flex-1 px-4 py-2 rounded-md transition-colors duration-200 shadow-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm ${
+                    activeTab === 'map' ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                }`}
+            >
+                <i className="fas fa-map-marker-alt mr-2"></i> 지도
+            </button>
+        </div>
+
+        {/* Loading Indicator */}
+        {loading && (
+          <div className="text-center text-gray-600 mt-4">
+            <i className="fas fa-spinner fa-spin mr-2"></i> 데이터 로딩 중...
+          </div>
+        )}
+
+        {/* API Error Message */}
+        {apiError && !loading && (
+            <div className="text-center text-red-600 mt-4 p-2 bg-red-100 rounded-md">
+                <i className="fas fa-exclamation-triangle mr-2"></i> 지도 또는 금연구역 데이터를 불러오는 데 실패했습니다.
+            </div>
+        )}
+
+        {/* No-Smoking Area List */}
+        {!loading && (
+          <div className="flex-1 overflow-y-auto border border-gray-200 rounded-md p-2 bg-gray-50">
+            {filteredAreas.length > 0 ? (
+              <ul>
+                {filteredAreas.map(area => (
+                  <li
+                    key={area.id}
+                    className={`p-3 mb-2 rounded-md cursor-pointer transition-colors duration-150 ease-in-out ${
+                      selectedArea && selectedArea.id === area.id ? 'bg-blue-100 border-blue-400 border-2' : 'bg-white hover:bg-gray-100 border border-gray-200'
+                    } shadow-sm`}
+                    onClick={() => handleListItemClick(area)}
+                  >
+                    <h3 className="font-semibold text-gray-800 text-base">{area.name}</h3>
+                    <p className="text-sm text-gray-600 truncate">{area.address}</p>
+                    <p className="text-xs text-gray-500">유형: {area.type}</p>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-center text-gray-500 mt-4">검색 결과가 없습니다.</p>
+            )}
+          </div>
+        )}
+      </aside>
+
+      {/* Main Content Area for Map */}
+      <div className="flex-1 flex flex-col">
+        <header className="text-center mb-6">
+          <h1 className="text-4xl font-extrabold text-blue-800 mb-2">
+            서울시 금연구역 지도 🚭
+          </h1>
+          <p className="text-lg text-gray-600">
+            서울시의 주요 금연구역 위치를 확인하세요.
+          </p>
+        </header>
+
+        <main className="relative flex-1 rounded-lg shadow-xl overflow-hidden">
+          <div
+            id="map"
+            ref={mapRef}
+            style={containerStyle}
+            className="bg-gray-200 flex items-center justify-center text-gray-500 text-lg"
+          >
+            {/* Display loading message until map is loaded */}
+            {!mapLoaded && "지도 로딩 중..."}
+            {mapLoaded && loading && <div className="text-center text-gray-600 mt-4"><i className="fas fa-spinner fa-spin mr-2"></i> 지도 데이터 로딩 중...</div>}
+            {mapLoaded && !loading && filteredAreas.length === 0 && !apiError && (
+                <div className="text-center text-gray-600 mt-4">표시할 금연구역이 없습니다.</div>
+            )}
+            {mapLoaded && apiError && !loading && (
+                <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 text-white text-lg p-4">
+                    카카오 지도 또는 금연구역 API 데이터를 불러올 수 없습니다.
+                </div>
+            )}
+          </div>
+        </main>
+
+        <footer className="text-center mt-6 text-gray-500 text-sm">
+          <p>&copy; 2025 서울시 금연구역 지도. 모든 권리 보유.</p>
+          <p>데이터는 서울시 공공데이터포털에서 제공됩니다.</p>
+        </footer>
+      </div>
+    </div>
+  );
+}
+
+export default App;
