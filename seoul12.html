@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>서울시 금연구역 검색</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+    <!-- Kakao Map API Script -->
+    <!-- Kakao Map API 키를 여기에 입력하세요. -->
+    <script type="text/javascript" src="//dapi.kakao.com/v2/maps/sdk.js?appkey=b56d933cb3bcdf1b561bb27982f51566&libraries=services"></script>
+    <style>
+        .selected-card {
+            background-color: #e2e8f0; /* bg-slate-200 */
+            border-color: #3b82f6; /* border-blue-500 */
+        }
+        #loading-indicator {
+            display: none;
+            text-align: center;
+            padding: 20px;
+            color: #4a5568; /* text-gray-700 */
+        }
+        #loading-progress {
+            font-size: 0.9em;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 flex flex-col items-center justify-center min-h-screen p-4 font-sans">
+
+    <!-- 메인 컨테이너: 검색 영역과 지도 영역을 가로로 배치 -->
+    <div class="w-full max-w-6xl flex flex-col md:flex-row gap-4 p-4">
+        <!-- 검색 및 결과 영역 (좌측) -->
+        <!-- 세로 사이즈를 동적으로 조절하기 위해 'left-panel' ID 추가 -->
+        <div id="left-panel" class="flex-1 bg-white p-6 rounded-xl shadow-lg border border-gray-200">
+            <h1 class="text-3xl font-bold text-center text-gray-800 mb-6">서울시 금연구역 검색</h1>
+            
+            <!-- 검색 입력 필드 -->
+            <div class="mb-6">
+                <input type="text" id="search-input" placeholder="금연구역명 또는 주소로 검색..."
+                       class="w-full px-4 py-2 text-lg border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors">
+            </div>
+
+            <!-- 로딩 인디케이터 -->
+            <div id="loading-indicator" class="text-center text-gray-700">
+                데이터를 불러오는 중... <span id="loading-progress"></span>
+            </div>
+
+            <!-- 검색 결과를 표시할 컨테이너 -->
+            <div id="results-container" class="space-y-4 max-h-96 overflow-y-auto pr-2">
+                <!-- 검색 결과가 여기에 동적으로 추가됩니다 -->
+            </div>
+        </div>
+        
+        <!-- 카카오 지도 컨테이너 (우측) -->
+        <div id="map" class="flex-1 h-96 bg-white rounded-xl shadow-lg border border-gray-200"></div>
+    </div>
+
+    <!-- JavaScript 로직 -->
+    <script type="text/javascript">
+        // API 키와 URL
+        const API_KEY = "66734e706b67617736344b52704b67";
+        // API 호출당 가져올 레코드 수 (최대 1000으로 확인됨)
+        const RECORDS_PER_CALL = 1000; 
+
+        let allSmokingAreas = []; // API에서 가져온 모든 데이터를 저장할 배열
+        let map = null;
+        let markers = []; // 모든 마커를 담을 배열
+        let infowindow = null;
+        let currentSelectedCard = null;
+        const loadingIndicator = document.getElementById('loading-indicator');
+        const loadingProgress = document.getElementById('loading-progress');
+        let totalApiDataCount = 0; // 총 API 데이터 건수
+
+        /**
+         * 지도의 높이를 좌측 패널의 높이와 일치시키는 함수
+         * 중간(md) 화면 크기 이상에서만 적용됩니다.
+         */
+        function matchMapHeight() {
+            const leftPanel = document.getElementById('left-panel');
+            const mapContainer = document.getElementById('map');
+
+            // Tailwind의 'md' breakpoint (768px) 이상에서만 높이 일치 적용
+            if (window.innerWidth >= 768) { 
+                const leftHeight = leftPanel.offsetHeight;
+                mapContainer.style.height = `${leftHeight}px`;
+            } else {
+                // 작은 화면에서는 인라인 스타일 제거하여 CSS 기본값 (h-96) 적용
+                mapContainer.style.height = ''; 
+            }
+        }
+
+        /**
+         * 페이지 로드 시 데이터를 불러오고 검색 결과를 렌더링하며 지도를 초기화합니다.
+         */
+        window.onload = function() {
+            // 서울시의 대략적인 중심 좌표
+            const defaultCenter = { lat: 37.5665, lng: 126.9780 }; // 서울시청 위도, 경도
+            
+            // 지도 초기화
+            initMap(defaultCenter.lat, defaultCenter.lng);
+            
+            // 데이터 불러오기 시작
+            loadDataProgressively();
+        };
+
+        /**
+         * API에서 특정 범위의 금연구역 데이터를 불러오는 함수
+         * @param {number} startIndex - 시작 인덱스
+         * @param {number} endIndex - 끝 인덱스
+         * @returns {Promise<Document>} XML 문서 객체
+         */
+        async function fetchXmlChunk(startIndex, endIndex) {
+            const url = `http://openapi.seoul.go.kr:8088/${API_KEY}/xml/tbPrhSmkArea/${startIndex}/${endIndex}/`;
+            const response = await fetch(url);
+            const text = await response.text();
+            const xmlDoc = new DOMParser().parseFromString(text, "text/xml");
+
+            const result = xmlDoc.querySelector('RESULT CODE');
+            if (result && result.textContent !== 'INFO-000') {
+                const message = xmlDoc.querySelector('RESULT MESSAGE')?.textContent || '알 수 없는 오류 발생';
+                throw new Error(`API 오류 (인덱스 ${startIndex}-${endIndex}): ${message}`);
+            }
+            return xmlDoc;
+        }
+
+        /**
+         * 데이터를 점진적으로 불러와 화면에 표시하는 함수
+         */
+        async function loadDataProgressively() {
+            loadingIndicator.style.display = 'block';
+            loadingProgress.textContent = ''; // 초기화
+
+            try {
+                // 1. 총 데이터 건수 파악 (첫 1건 요청으로)
+                const initialXmlDoc = await fetchXmlChunk(1, 1);
+                const totalCountElement = initialXmlDoc.querySelector('list_total_count');
+                if (!totalCountElement) {
+                    throw new Error("API 응답에서 총 데이터 건수를 찾을 수 없습니다.");
+                }
+                totalApiDataCount = parseInt(totalCountElement.textContent, 10);
+                loadingProgress.textContent = `(0 / ${totalApiDataCount} 건)`;
+
+                // 2. 첫 1000건 데이터 로드 및 즉시 표시
+                const firstChunkXmlDoc = await fetchXmlChunk(1, RECORDS_PER_CALL);
+                parseAndAddData(firstChunkXmlDoc); // allSmokingAreas에 추가
+
+                updateMapMarkers(allSmokingAreas); // 첫 데이터 마커 표시
+                renderResults(allSmokingAreas); // 첫 데이터 리스트 표시
+                matchMapHeight(); // 높이 맞춤
+
+                loadingProgress.textContent = `(${allSmokingAreas.length} / ${totalApiDataCount} 건)`;
+                
+                // 3. 나머지 데이터 백그라운드에서 로드
+                let startIndex = RECORDS_PER_CALL + 1;
+                while (startIndex <= totalApiDataCount) {
+                    const endIndex = Math.min(startIndex + RECORDS_PER_CALL - 1, totalApiDataCount);
+                    const xmlDoc = await fetchXmlChunk(startIndex, endIndex);
+                    parseAndAddData(xmlDoc); // allSmokingAreas에 추가
+
+                    // 로딩 진행 상황 업데이트 (체감 속도 개선)
+                    loadingProgress.textContent = `(${allSmokingAreas.length} / ${totalApiDataCount} 건)`;
+
+                    startIndex += RECORDS_PER_CALL;
+                }
+                
+                // 모든 데이터 로드 완료 후 최종 업데이트
+                // 지도가 이동했거나 검색어가 있을 수 있으므로 현재 상태에 맞춰 업데이트
+                onMapIdle(); // 현재 지도 영역에 맞는 마커 업데이트
+                searchInput.dispatchEvent(new Event('input')); // 현재 검색어 기준으로 리스트 업데이트
+
+            } catch (error) {
+                console.error("데이터를 불러오는 중 오류 발생:", error);
+                document.getElementById('results-container').innerHTML = `<p class="text-center text-red-500">데이터를 불러오는 데 실패했습니다: ${error.message}. 다시 시도해 주세요.</p>`;
+            } finally {
+                loadingIndicator.style.display = 'none'; // 로딩 인디케이터 숨김
+            }
+        }
+
+        /**
+         * XML 문서를 파싱하여 allSmokingAreas 배열에 데이터를 추가하는 헬퍼 함수
+         * @param {Document} xmlDoc - 파싱할 XML 문서 객체
+         */
+        function parseAndAddData(xmlDoc) {
+            const rows = xmlDoc.querySelectorAll('row');
+            rows.forEach(row => {
+                const areaName = row.querySelector('PRHSMKNM')?.textContent?.trim();
+                let address = row.querySelector('RDNMADR')?.textContent?.trim();
+                if (!address) {
+                    address = row.querySelector('LNMADR')?.textContent?.trim();
+                }
+                const latitude = parseFloat(row.querySelector('LATITUDE')?.textContent);
+                const longitude = parseFloat(row.querySelector('LONGITUDE')?.textContent);
+
+                if (areaName && address && !isNaN(latitude) && !isNaN(longitude)) {
+                    allSmokingAreas.push({
+                        "금연구역명": areaName,
+                        "소재지도로명주소": address,
+                        "위도": latitude,
+                        "경도": longitude
+                    });
+                }
+            });
+        }
+
+        /**
+         * 검색 입력 필드에 이벤트 리스너를 추가하여 실시간으로 검색을 수행합니다.
+         */
+        const searchInput = document.getElementById('search-input');
+        searchInput.addEventListener('input', () => {
+            const query = searchInput.value.trim().toLowerCase();
+            
+            // API에서 불러온 데이터 필터링
+            const filteredData = allSmokingAreas.filter(item => 
+                (item["금연구역명"] && item["금연구역명"].toLowerCase().includes(query)) ||
+                (item["소재지도로명주소"] && item["소재지도로명주소"].toLowerCase().includes(query))
+            );
+            
+            renderResults(filteredData); // 검색 결과 리스트 업데이트
+            updateMapMarkers(filteredData); // 검색 결과에 해당하는 마커만 지도에 표시
+            matchMapHeight(); // 검색 결과 렌더링 후 높이 맞춤
+        });
+
+        /**
+         * 카카오 지도를 초기화하는 함수
+         * @param {number} lat - 지도의 중심 위도
+         * @param {number} lng - 지도의 중심 경도
+         */
+        function initMap(lat, lng) {
+            const mapContainer = document.getElementById('map');
+            const mapOption = {
+                center: new kakao.maps.LatLng(lat, lng),
+                level: 5 // 지도의 확대 레벨
+            };
+            map = new kakao.maps.Map(mapContainer, mapOption);
+            infowindow = new kakao.maps.InfoWindow({zIndex:1});
+
+            // 지도 이동 또는 확대/축소 후 멈췄을 때 이벤트 리스너 추가
+            kakao.maps.event.addListener(map, 'idle', onMapIdle);
+        }
+        
+        /**
+         * 지도 `idle` 이벤트 발생 시 호출되는 함수
+         * 현재 지도의 보이는 영역 내에 있는 마커만 표시합니다.
+         */
+        function onMapIdle() {
+            const bounds = map.getBounds(); // 현재 지도의 영역을 받아옵니다
+            const visibleAreas = allSmokingAreas.filter(item => {
+                // 각 금연구역의 위도, 경도가 현재 지도의 보이는 영역 내에 있는지 확인
+                return bounds.contain(new kakao.maps.LatLng(item["위도"], item["경도"]));
+            });
+            updateMapMarkers(visibleAreas); // 보이는 영역 내의 마커만 지도에 업데이트
+        }
+
+        /**
+         * 지도에 마커를 업데이트하는 함수 (기존 마커 제거 후 새로 추가)
+         * @param {Array<Object>} data - 지도에 표시할 데이터 배열
+         */
+        function updateMapMarkers(data) {
+            // 기존 마커가 있다면 모두 제거
+            markers.forEach(marker => marker.setMap(null));
+            markers = []; // 마커 배열 초기화
+
+            data.forEach(item => {
+                const markerPosition = new kakao.maps.LatLng(item["위도"], item["경도"]);
+                
+                const newMarker = new kakao.maps.Marker({
+                    map: map,
+                    position: markerPosition
+                });
+
+                markers.push(newMarker); // 생성된 마커를 배열에 추가
+
+                // 마커에 클릭 이벤트 추가
+                kakao.maps.event.addListener(newMarker, 'click', function() {
+                    // 클릭 시 인포윈도우 표시
+                    infowindow.setContent('<div class="p-2 text-sm font-semibold">' + item["금연구역명"] + '</div>');
+                    infowindow.open(map, newMarker);
+                });
+            });
+        }
+
+        /**
+         * 검색 결과를 화면에 렌더링하는 함수 (리스트 전용)
+         * @param {Array<Object>} data - 표시할 데이터 배열
+         */
+        function renderResults(data) {
+            const resultsContainer = document.getElementById('results-container');
+            resultsContainer.innerHTML = ''; // 기존 결과 초기화
+
+            if (data.length === 0) {
+                resultsContainer.innerHTML = '<p class="text-center text-gray-500">검색 결과가 없습니다.</p>';
+                return;
+            }
+
+            data.forEach(item => {
+                const resultCard = document.createElement('div');
+                resultCard.className = 'bg-gray-50 p-4 rounded-lg shadow-sm border border-gray-200 cursor-pointer transition-colors hover:bg-gray-100';
+                resultCard.innerHTML = `
+                    <h3 class="text-xl font-semibold text-gray-900">${item["금연구역명"]}</h3>
+                    <p class="text-gray-600"><strong>주소:</strong> ${item["소재지도로명주소"]}</p>
+                    <p class="text-600"><strong>위도:</strong> ${item["위도"]}, <strong>경도:</strong> ${item["경도"]}</p>
+                `;
+                
+                // 클릭 이벤트 리스너 추가
+                resultCard.addEventListener('click', () => {
+                    // 이전에 선택된 카드 스타일 초기화
+                    if (currentSelectedCard) {
+                        currentSelectedCard.classList.remove('selected-card');
+                    }
+                    // 현재 카드에 선택된 스타일 적용
+                    resultCard.classList.add('selected-card');
+                    currentSelectedCard = resultCard;
+
+                    // 지도를 클릭한 항목의 위치로 이동
+                    const moveLatLon = new kakao.maps.LatLng(item["위도"], item["경도"]);
+                    map.panTo(moveLatLon);
+
+                    // 해당 위치의 마커를 찾아 인포윈도우 열기
+                    const targetMarker = markers.find(marker => 
+                        marker.getPosition().getLat() == item["위도"] && marker.getPosition().getLng() == item["경도"]
+                    );
+                    if (targetMarker) {
+                         infowindow.setContent('<div class="p-2 text-sm font-semibold">' + item["금연구역명"] + '</div>');
+                         infowindow.open(map, targetMarker);
+                    }
+                });
+
+                resultsContainer.appendChild(resultCard);
+            });
+        }
+
+        // 창 크기 변경 시에도 높이 맞춤 함수 호출
+        window.onresize = matchMapHeight;
+    </script>
+</body>
+</html>
