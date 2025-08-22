@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>서울시 카카오 지도 🗺️</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome CDN for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <style>
+        body { font-family: "Inter", sans-serif; }
+        .map-container { width: 100%; height: 80vh; border-radius: 0.5rem; overflow: hidden; }
+        /* Custom styling for Kakao Maps InfoWindow content (not used without data) */
+        .info-window-content { padding: 8px; background-color: white; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.15); min-width: 150px; }
+        .info-window-content h3 { font-weight: bold; font-size: 1.125rem; margin-bottom: 4px; color: #1f2937; }
+        .info-window-content p { font-size: 0.875rem; color: #374151; margin-bottom: 2px; }
+        .info-window-content .text-xs { font-size: 0.75rem; color: #6b7280; margin-top: 4px;}
+    </style>
+</head>
+<body class="min-h-screen bg-gray-100 p-4 font-inter flex flex-col lg:flex-row">
+    <!-- Left Sidebar for Search and List (functionality removed without data) -->
+    <aside class="w-full lg:w-1/3 p-4 bg-white rounded-lg shadow-xl mb-4 lg:mb-0 lg:mr-4 flex flex-col">
+        <h2 class="text-2xl font-bold text-gray-800 mb-4">지도 기능</h2>
+        
+        <!-- Search Input (disabled without data) -->
+        <div class="mb-4">
+            <input
+                type="text"
+                id="searchTerm"
+                placeholder="검색 기능 비활성화 (데이터 없음)..."
+                class="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-700 bg-gray-100 cursor-not-allowed"
+                disabled
+            />
+        </div>
+
+        <!-- Action Buttons (limited functionality) -->
+        <div class="flex justify-between mb-4 space-x-2">
+            <button
+                id="myLocationBtn"
+                class="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors duration-200 shadow-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+            >
+                <i class="fas fa-location-arrow mr-2"></i> 내 위치
+            </button>
+            <button
+                id="listTabBtn"
+                class="flex-1 px-4 py-2 rounded-md transition-colors duration-200 shadow-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm bg-gray-200 text-gray-700 hover:bg-gray-300 cursor-not-allowed"
+                disabled
+            >
+                <i class="fas fa-list mr-2"></i> 목록
+            </button>
+            <button
+                id="mapTabBtn"
+                class="flex-1 px-4 py-2 rounded-md transition-colors duration-200 shadow-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm bg-blue-500 text-white"
+            >
+                <i class="fas fa-map-marker-alt mr-2"></i> 지도
+            </button>
+        </div>
+
+        <!-- Loading Indicator (removed, as no external data fetch) -->
+        <!-- API Error Message for Sidebar (only for map script load) -->
+        <div id="apiErrorMessage" class="text-center text-red-600 mt-4 p-2 bg-red-100 rounded-md hidden">
+            <i class="fas fa-exclamation-triangle mr-2"></i> 지도 로드에 실패했습니다.
+        </div>
+
+        <!-- No-Smoking Area List (disabled without data) -->
+        <div id="noSmokingAreaList" class="flex-1 overflow-y-auto border border-gray-200 rounded-md p-2 bg-gray-50">
+            <p class="text-center text-gray-500 mt-4">금연구역 데이터가 없습니다.</p>
+        </div>
+      </aside>
+
+    <!-- Main Content Area for Map -->
+    <div class="flex-1 flex flex-col">
+        <header class="text-center mb-6">
+            <h1 class="text-4xl font-extrabold text-blue-800 mb-2">
+                서울시 카카오 지도 🗺️
+            </h1>
+            <p class="text-lg text-gray-600">
+                카카오 지도를 사용하여 서울시를 표시합니다.
+            </p>
+        </header>
+
+        <main class="relative flex-1 rounded-lg shadow-xl overflow-hidden">
+            <div
+                id="map"
+                class="map-container bg-gray-200 flex items-center justify-center text-gray-500 text-lg"
+            >
+                <!-- Map will be initialized here by Kakao Maps API -->
+                <span id="mapLoadingMessage">지도 로딩 중...</span>
+            </div>
+             <!-- API Error Message for Map Area (only for map script load) -->
+             <div id="mapApiErrorMessage" class="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 text-white text-lg p-4 hidden">
+                카카오 지도 로드에 실패했습니다.
+            </div>
+        </main>
+
+        <footer class="text-center mt-6 text-gray-500 text-sm">
+            <p>&copy; 2025 서울시 카카오 지도. 모든 권리 보유.</p>
+            <p>데이터는 제공되지 않습니다.</p>
+        </footer>
+    </div>
+
+    <!-- Kakao Maps API Script -->
+    <script>
+        const KAKAO_APP_KEY = 'b56d933cb3bcdf1b561bb27982f51566'; // Your Kakao Maps API Key
+
+        let kakaoMap = null;
+        let mapLoaded = false;
+        let apiError = false; // Error state for Kakao Map script load
+
+        // Directly get the map container element
+        const mapContainer = document.getElementById('map'); 
+        const apiErrorMessage = document.getElementById('apiErrorMessage'); // Sidebar error
+        const mapApiErrorMessage = document.getElementById('mapApiErrorMessage'); // Map area error
+        const mapLoadingMessage = document.getElementById('mapLoadingMessage');
+        const myLocationBtn = document.getElementById('myLocationBtn');
+
+        // Function to update UI based on mapLoaded/apiError states
+        function updateUI() {
+            if (mapLoaded && !apiError) {
+                mapLoadingMessage.classList.add('hidden');
+                apiErrorMessage.classList.add('hidden');
+                mapApiErrorMessage.classList.add('hidden');
+            } else if (apiError) {
+                mapLoadingMessage.classList.add('hidden');
+                apiErrorMessage.classList.remove('hidden');
+                mapApiErrorMessage.classList.remove('hidden');
+                if (mapContainer) mapContainer.innerHTML = ''; // Clear map area if API failed
+            } else { // Still loading map
+                mapLoadingMessage.classList.remove('hidden');
+            }
+        }
+
+        // Initialize Kakao Map
+        function initMap() {
+            if (mapContainer && window.kakao && window.kakao.maps) { // Ensure kakao.maps is available
+                 const options = {
+                    center: new kakao.maps.LatLng(37.5665, 126.9780), // Default Seoul center
+                    level: 7
+                };
+                kakaoMap = new kakao.maps.Map(mapContainer, options); // Use mapContainer directly
+                mapLoaded = true;
+            } else {
+                console.error("Kakao Map container or API not found. Cannot initialize map.");
+                apiError = true;
+            }
+            updateUI(); // Update UI after map initialization attempt
+        }
+
+        // Dynamically load the Kakao Maps API script
+        function loadKakaoMapScript() {
+            if (window.kakao && window.kakao.maps) {
+                mapLoaded = true;
+                initMap(); // Initialize map if script is already loaded
+                return;
+            }
+
+            const script = document.createElement('script');
+            script.src = `//dapi.kakao.com/v2/maps/sdk.js?appkey=${KAKAO_APP_KEY}`;
+            script.async = true;
+            script.defer = true;
+            document.head.appendChild(script);
+
+            script.onload = () => {
+                // Ensure kakao.maps is ready before calling initMap
+                if (window.kakao && window.kakao.maps) {
+                    kakao.maps.load(function() { // Use kakao.maps.load for proper initialization
+                        initMap(); // Call initMap after Kakao Maps API is fully loaded
+                    });
+                } else {
+                    console.error("Kakao Maps API script loaded but window.kakao.maps is not defined.");
+                    apiError = true;
+                    updateUI();
+                }
+            };
+
+            script.onerror = () => {
+                console.error("Kakao Maps API script failed to load.");
+                apiError = true;
+                updateUI();
+            };
+        }
+
+        // Event handlers
+        function handleMyLocation() {
+            if (navigator.geolocation && kakaoMap && mapLoaded && !apiError) {
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        const pos = new kakao.maps.LatLng(position.coords.latitude, position.coords.longitude);
+                        kakaoMap.setCenter(pos);
+                        kakaoMap.setLevel(3);
+                    },
+                    () => {
+                        alert('현재 위치를 가져올 수 없습니다. 위치 권한을 확인해주세요.');
+                    }
+                );
+            } else if (!mapLoaded || apiError) {
+                alert('지도가 로드되지 않았거나 오류가 발생하여 내 위치를 사용할 수 없습니다.');
+            } else {
+                alert('이 브라우저는 지오로케이션을 지원하지 않습니다.');
+            }
+        }
+
+        // Initial setup on DOMContentLoaded
+        document.addEventListener('DOMContentLoaded', () => {
+            loadKakaoMapScript(); // Load Kakao Map API script
+            
+            // Event Listeners for buttons
+            myLocationBtn.addEventListener('click', handleMyLocation);
+            // List and Map tab buttons are mostly visual, their full functionality depends on data/map interaction
+        });
+    </script>
+</body>
+</html>
